@@ -606,8 +606,11 @@ static void php_memc_get_impl(INTERNAL_FUNCTION_PARAMETERS, zend_bool by_key)
 
 	if (memcached_fetch_result(m_obj->memc, &result, &status) == NULL) {
 		/* This is for historical reasons */
-		if (status == MEMCACHED_END)
-			status = MEMCACHED_NOTFOUND;
+		/* dunno what those historical reasons are, but trying to track down why we're getting NOTFOUND instead of CONNECTION_FAILURE, so... */
+        if (status == MEMCACHED_END) { 
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "got MEMCACHED_END, override to NOTFOUND");
+			status = MEMCACHED_NOTFOUND; 
+        }
 
 		/*
 			* If the result wasn't found, and we have the read-through callback, invoke
@@ -755,6 +758,7 @@ static void php_memc_getMulti_impl(INTERNAL_FUNCTION_PARAMETERS, zend_bool by_ke
 	}
 
 	if (i == 0) {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "no multiGet keys, NOTFOUND");
 		i_obj->rescode = MEMCACHED_NOTFOUND;
 		efree(mkeys);
 		efree(mkeys_len);
@@ -3606,6 +3610,7 @@ static memcached_return php_memc_do_cache_callback(zval *zmemc_obj, zend_fcall_i
 				efree(payload);
 			}
 		} else {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "some NOTFOUND override I don't fully understand yet");
 			status = MEMCACHED_NOTFOUND;
 			zval_dtor(value);
 			ZVAL_NULL(value);
